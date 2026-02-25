@@ -247,6 +247,65 @@ public class StandardLookupThread implements Runnable {
                                 PluginChannelListener.getInstance().sendUsernameData(player, Integer.parseInt(time), user, username);
                             }
                         }
+                        else if (actions.contains(30) || actions.contains(31) || actions.contains(32) || actions.contains(33)) { // entity interactions (mount/dismount/leash/unleash)
+                            for (String[] data : lookupList) {
+                                String time = data[0];
+                                String dplayer = data[1];
+                                int wid = Integer.parseInt(data[2]);
+                                int dataX = Integer.parseInt(data[3]);
+                                int dataY = Integer.parseInt(data[4]);
+                                int dataZ = Integer.parseInt(data[5]);
+                                int daction = Integer.parseInt(data[6]);
+                                int dtype = Integer.parseInt(data[7]);
+                                
+                                String timeago = ChatUtils.getTimeSince(Integer.parseInt(time), unixtimestamp, true);
+                                int timeLength = 50 + (ChatUtils.getTimeSince(Integer.parseInt(time), unixtimestamp, false).replaceAll("[^0-9]", "").length() * 6);
+                                String leftPadding = Color.BOLD + Strings.padStart("", 10, ' ');
+                                if (timeLength % 4 == 0) {
+                                    leftPadding = Strings.padStart("", timeLength / 4, ' ');
+                                }
+                                else {
+                                    leftPadding = leftPadding + Color.WHITE + Strings.padStart("", (timeLength - 50) / 4, ' ');
+                                }
+                                
+                                // Get entity type name from ID (lowercase)
+                                String entityTypeName = EntityUtils.getEntityType(dtype).name().toLowerCase(java.util.Locale.ROOT);
+                                String metadata = data.length > 9 ? data[9] : null;
+                                String leashBlockType = parseLeashBlockType(metadata);
+                                String entityTarget = buildEntityTarget(entityTypeName, daction, leashBlockType);
+                                
+                                // Determine action phrase
+                                Phrase phrase;
+                                if (daction == 30) {
+                                    phrase = Phrase.LOOKUP_ENTITY_MOUNT;
+                                }
+                                else if (daction == 31) {
+                                    phrase = Phrase.LOOKUP_ENTITY_DISMOUNT;
+                                }
+                                else if (daction == 32) {
+                                    phrase = Phrase.LOOKUP_ENTITY_LEASH;
+                                }
+                                else if (daction == 33) {
+                                    phrase = Phrase.LOOKUP_ENTITY_UNLEASH;
+                                }
+                                else {
+                                    phrase = Phrase.LOOKUP_ENTITY_MOUNT;
+                                }
+
+                                if (daction == 32 && leashBlockType != null && !leashBlockType.isEmpty()) {
+                                    Chat.sendComponent(player,
+                                            timeago + " " + Color.WHITE + "- "
+                                                    + Color.DARK_AQUA + dplayer + Color.WHITE + " leashed "
+                                                    + Color.DARK_AQUA + entityTypeName + Color.WHITE + " to "
+                                                    + Color.DARK_AQUA + leashBlockType + Color.WHITE + ".");
+                                }
+                                else {
+                                    Chat.sendComponent(player, timeago + " " + Color.WHITE + "- " + Phrase.build(phrase, Color.DARK_AQUA + dplayer + Color.WHITE, Color.DARK_AQUA + entityTypeName + Color.WHITE));
+                                }
+                                Chat.sendComponent(player, Color.WHITE + leftPadding + Color.GREY + "^ " + ChatUtils.getCoordinates(command.getName(), wid, dataX, dataY, dataZ, true, true) + "");
+                                PluginChannelListener.getInstance().sendData(player, Integer.parseInt(time), phrase, Selector.FIRST, dplayer, entityTarget, -1, dataX, dataY, dataZ, wid, "", false, false);
+                            }
+                        }
                         else if (actions.contains(10)) { // sign messages
                             for (String[] data : lookupList) {
                                 String time = data[0];
@@ -324,6 +383,68 @@ public class StandardLookupThread implements Runnable {
                         else {
                             for (String[] data : lookupList) {
                                 int drb = Integer.parseInt(data[8]);
+                                
+                                // Check if this is from entity_interact table (table 3)
+                                int resultTable = data.length > 13 ? Integer.parseInt(data[13]) : 0;
+                                if (resultTable == 3) {
+                                    // Entity interact results (mount/dismount/leash/unleash) from UNION query
+                                    int wid = Integer.parseInt(data[2]);
+                                    int dataX = Integer.parseInt(data[3]);
+                                    int dataY = Integer.parseInt(data[4]);
+                                    int dataZ = Integer.parseInt(data[5]);
+                                    int daction = Integer.parseInt(data[7]);
+                                    int dtype = Integer.parseInt(data[8]); // entity_type is at position 8 in the UNION result
+                                    
+                                    String time = data[0];
+                                    String dplayer = data[1];
+                                    
+                                    String timeago = ChatUtils.getTimeSince(Integer.parseInt(time), unixtimestamp, true);
+                                    int timeLength = 50 + (ChatUtils.getTimeSince(Integer.parseInt(time), unixtimestamp, false).replaceAll("[^0-9]", "").length() * 6);
+                                    String leftPadding = Color.BOLD + Strings.padStart("", 10, ' ');
+                                    if (timeLength % 4 == 0) {
+                                        leftPadding = Strings.padStart("", timeLength / 4, ' ');
+                                    }
+                                    else {
+                                        leftPadding = leftPadding + Color.WHITE + Strings.padStart("", (timeLength - 50) / 4, ' ');
+                                    }
+                                    
+                                    String entityTypeName = EntityUtils.getEntityType(dtype).name().toLowerCase(java.util.Locale.ROOT);
+                                    String metadata = data.length > 9 ? data[9] : null;
+                                    String leashBlockType = parseLeashBlockType(metadata);
+                                    String entityTarget = buildEntityTarget(entityTypeName, daction, leashBlockType);
+                                    
+                                    Phrase phrase;
+                                    if (daction == 30) {
+                                        phrase = Phrase.LOOKUP_ENTITY_MOUNT;
+                                    }
+                                    else if (daction == 31) {
+                                        phrase = Phrase.LOOKUP_ENTITY_DISMOUNT;
+                                    }
+                                    else if (daction == 32) {
+                                        phrase = Phrase.LOOKUP_ENTITY_LEASH;
+                                    }
+                                    else if (daction == 33) {
+                                        phrase = Phrase.LOOKUP_ENTITY_UNLEASH;
+                                    }
+                                    else {
+                                        phrase = Phrase.LOOKUP_ENTITY_MOUNT;
+                                    }
+
+                                    if (daction == 32 && leashBlockType != null && !leashBlockType.isEmpty()) {
+                                        Chat.sendComponent(player,
+                                                timeago + " " + Color.WHITE + "- "
+                                                        + Color.DARK_AQUA + dplayer + Color.WHITE + " leashed "
+                                                        + Color.DARK_AQUA + entityTypeName + Color.WHITE + " to "
+                                                        + Color.DARK_AQUA + leashBlockType + Color.WHITE + ".");
+                                    }
+                                    else {
+                                        Chat.sendComponent(player, timeago + " " + Color.WHITE + "- " + Phrase.build(phrase, Color.DARK_AQUA + dplayer + Color.WHITE, Color.DARK_AQUA + entityTypeName + Color.WHITE));
+                                    }
+                                    Chat.sendComponent(player, Color.WHITE + leftPadding + Color.GREY + "^ " + ChatUtils.getCoordinates(command.getName(), wid, dataX, dataY, dataZ, true, true) + "");
+                                    PluginChannelListener.getInstance().sendData(player, Integer.parseInt(time), phrase, Selector.FIRST, dplayer, entityTarget, -1, dataX, dataY, dataZ, wid, "", false, false);
+                                    continue;
+                                }
+                                
                                 String rbd = "";
                                 if (drb == 1 || drb == 3) {
                                     rbd = Color.STRIKETHROUGH;
@@ -466,5 +587,34 @@ public class StandardLookupThread implements Runnable {
         }
 
         ConfigHandler.lookupThrottle.put(player.getName(), new Object[] { false, System.currentTimeMillis() });
+    }
+
+    private static String parseLeashBlockType(String metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            return null;
+        }
+
+        String key = "\"block_type\":\"";
+        int keyStart = metadata.indexOf(key);
+        if (keyStart < 0) {
+            return null;
+        }
+
+        int valueStart = keyStart + key.length();
+        int valueEnd = metadata.indexOf('"', valueStart);
+        if (valueEnd <= valueStart) {
+            return null;
+        }
+
+        String rawType = metadata.substring(valueStart, valueEnd).toLowerCase(Locale.ROOT);
+        return rawType.replace('_', ' ');
+    }
+
+    private static String buildEntityTarget(String entityTypeName, int action, String leashBlockType) {
+        if (action == 32 && leashBlockType != null && !leashBlockType.isEmpty()) {
+            return entityTypeName + " to " + leashBlockType;
+        }
+
+        return entityTypeName;
     }
 }

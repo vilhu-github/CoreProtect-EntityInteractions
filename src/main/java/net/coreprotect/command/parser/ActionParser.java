@@ -127,6 +127,18 @@ public class ActionParser {
                         result.add(11);
                         result.add(1);
                     }
+                    else if (argument.equals("mount") || argument.equals("mounting") || argument.equals("vehicle") || argument.equals("vehicles")) {
+                        result.add(30);
+                    }
+                    else if (argument.equals("dismount") || argument.equals("dismounting")) {
+                        result.add(31);
+                    }
+                    else if (argument.equals("leash") || argument.equals("leashing")) {
+                        result.add(32);
+                    }
+                    else if (argument.equals("unleash") || argument.equals("unleashing")) {
+                        result.add(33);
+                    }
                     else {
                         result.add(-1);
                     }

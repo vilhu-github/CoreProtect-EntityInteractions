@@ -46,6 +46,11 @@ public class Process {
     public static final int INVENTORY_ROLLBACK_UPDATE = 27;
     public static final int INVENTORY_CONTAINER_ROLLBACK_UPDATE = 28;
     public static final int BLOCK_INVENTORY_ROLLBACK_UPDATE = 29;
+    public static final int ENTITY_MOUNT = 30;
+    public static final int ENTITY_DISMOUNT = 31;
+    public static final int ENTITY_LEASH = 32;
+    public static final int ENTITY_UNLEASH = 33;
+    public static final int ENTITY_INTERACT = 34;
 
     public static int lastLockUpdate = 0;
     private static volatile int currentConsumerSize = 0;
@@ -122,6 +127,7 @@ public class Process {
             PreparedStatement preparedStmtArt = Database.prepareStatement(connection, Database.ART, false);
             PreparedStatement preparedStmtEntity = Database.prepareStatement(connection, Database.ENTITY_MAP, false);
             PreparedStatement preparedStmtBlockdata = Database.prepareStatement(connection, Database.BLOCKDATA, false);
+            PreparedStatement preparedStmtEntityInteract = Database.prepareStatement(connection, Database.ENTITY_INTERACT, false);
 
             // Scan through consumer data
             Database.beginTransaction(statement, Config.getGlobal().MYSQL);
@@ -226,6 +232,9 @@ public class Process {
                                 case Process.BLOCKDATA_INSERT:
                                     BlockDataInsertProcess.process(preparedStmtBlockdata, statement, i, object, forceData);
                                     break;
+                                case Process.ENTITY_INTERACT:
+                                    EntityInteractProcess.process(preparedStmtEntityInteract, connection, i, user, (org.bukkit.Location) object, blockData, replaceData, (String) data[7], (String) data[8], (String) data[9]);
+                                    break;
                             }
 
                             // If database connection goes missing, remove processed data from consumer and abort
@@ -241,7 +250,7 @@ public class Process {
 
                             // If interrupt requested, commit data, sleep, and resume processing
                             if (Consumer.interrupt) {
-                                commit(statement, preparedStmtSigns, preparedStmtBlocks, preparedStmtSkulls, preparedStmtContainers, preparedStmtItems, preparedStmtWorlds, preparedStmtChat, preparedStmtCommand, preparedStmtSession, preparedStmtEntities, preparedStmtMaterials, preparedStmtArt, preparedStmtEntity, preparedStmtBlockdata);
+                                commit(statement, preparedStmtSigns, preparedStmtBlocks, preparedStmtSkulls, preparedStmtContainers, preparedStmtItems, preparedStmtWorlds, preparedStmtChat, preparedStmtCommand, preparedStmtSession, preparedStmtEntities, preparedStmtMaterials, preparedStmtArt, preparedStmtEntity, preparedStmtBlockdata, preparedStmtEntityInteract);
                                 Thread.sleep(500);
                                 Database.beginTransaction(statement, Config.getGlobal().MYSQL);
                             }
@@ -255,7 +264,7 @@ public class Process {
             }
 
             // commit data to database
-            commit(statement, preparedStmtSigns, preparedStmtBlocks, preparedStmtSkulls, preparedStmtContainers, preparedStmtItems, preparedStmtWorlds, preparedStmtChat, preparedStmtCommand, preparedStmtSession, preparedStmtEntities, preparedStmtMaterials, preparedStmtArt, preparedStmtEntity, preparedStmtBlockdata);
+            commit(statement, preparedStmtSigns, preparedStmtBlocks, preparedStmtSkulls, preparedStmtContainers, preparedStmtItems, preparedStmtWorlds, preparedStmtChat, preparedStmtCommand, preparedStmtSession, preparedStmtEntities, preparedStmtMaterials, preparedStmtArt, preparedStmtEntity, preparedStmtBlockdata, preparedStmtEntityInteract);
 
             // close connections/statements
             preparedStmtSigns.close();
@@ -272,6 +281,7 @@ public class Process {
             preparedStmtArt.close();
             preparedStmtEntity.close();
             preparedStmtBlockdata.close();
+            preparedStmtEntityInteract.close();
             statement.close();
 
             // clear maps
@@ -287,7 +297,7 @@ public class Process {
         Consumer.isPaused = false;
     }
 
-    private static void commit(Statement statement, PreparedStatement preparedStmtSigns, PreparedStatement preparedStmtBlocks, PreparedStatement preparedStmtSkulls, PreparedStatement preparedStmtContainers, PreparedStatement preparedStmtItems, PreparedStatement preparedStmtWorlds, PreparedStatement preparedStmtChat, PreparedStatement preparedStmtCommand, PreparedStatement preparedStmtSession, PreparedStatement preparedStmtEntities, PreparedStatement preparedStmtMaterials, PreparedStatement preparedStmtArt, PreparedStatement preparedStmtEntity, PreparedStatement preparedStmtBlockdata) {
+    private static void commit(Statement statement, PreparedStatement preparedStmtSigns, PreparedStatement preparedStmtBlocks, PreparedStatement preparedStmtSkulls, PreparedStatement preparedStmtContainers, PreparedStatement preparedStmtItems, PreparedStatement preparedStmtWorlds, PreparedStatement preparedStmtChat, PreparedStatement preparedStmtCommand, PreparedStatement preparedStmtSession, PreparedStatement preparedStmtEntities, PreparedStatement preparedStmtMaterials, PreparedStatement preparedStmtArt, PreparedStatement preparedStmtEntity, PreparedStatement preparedStmtBlockdata, PreparedStatement preparedStmtEntityInteract) {
         try {
             preparedStmtSigns.executeBatch();
             preparedStmtBlocks.executeBatch();
@@ -303,6 +313,7 @@ public class Process {
             preparedStmtArt.executeBatch();
             preparedStmtEntity.executeBatch();
             preparedStmtBlockdata.executeBatch();
+            preparedStmtEntityInteract.executeBatch();
             Database.commitTransaction(statement, Config.getGlobal().MYSQL);
         }
         catch (Exception e) {

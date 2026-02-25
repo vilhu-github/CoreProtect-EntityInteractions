@@ -139,6 +139,10 @@ public class Language {
         phrases.put(Phrase.LOOKUP_CONTAINER, "{0} {added|removed} {1} {2}.");
         phrases.put(Phrase.LOOKUP_HEADER, "{0} Lookup Results");
         phrases.put(Phrase.LOOKUP_INTERACTION, "{0} {clicked|killed} {1}.");
+        phrases.put(Phrase.LOOKUP_ENTITY_MOUNT, "{0} mounted {1}.");
+        phrases.put(Phrase.LOOKUP_ENTITY_DISMOUNT, "{0} dismounted {1}.");
+        phrases.put(Phrase.LOOKUP_ENTITY_LEASH, "{0} leashed {1}.");
+        phrases.put(Phrase.LOOKUP_ENTITY_UNLEASH, "{0} unleashed {1}.");
         phrases.put(Phrase.LOOKUP_ITEM, "{0} {picked up|dropped} {1} {2}.");
         phrases.put(Phrase.LOOKUP_LOGIN, "{0} logged {in|out}.");
         phrases.put(Phrase.LOOKUP_PAGE, "Page {0}");
