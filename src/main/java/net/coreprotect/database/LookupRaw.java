@@ -30,7 +30,7 @@ public class LookupRaw extends Queue {
     protected static List<Object[]> performLookupRaw(Statement statement, CommandSender user, List<String> checkUuids, List<String> checkUsers, List<Object> restrictList, Map<Object, Boolean> excludeList, List<String> excludeUserList, List<Integer> actionList, Location location, Integer[] radius, Long[] rowData, long startTime, long endTime, int limitOffset, int limitCount, boolean restrictWorld, boolean lookup) {
         List<Object[]> list = new ArrayList<>();
         List<Integer> invalidRollbackActions = new ArrayList<>();
-        invalidRollbackActions.add(2);
+        invalidRollbackActions.addAll(Arrays.asList(2, 30, 31, 32, 33));
 
         if (!Config.getGlobal().ROLLBACK_ENTITIES && !actionList.contains(3)) {
             invalidRollbackActions.add(3);
@@ -159,6 +159,23 @@ public class LookupRaw extends Queue {
                     Object[] dataArray = new Object[] { resultId, resultTime, resultUserId, resultWorldId, resultX, resultY, resultZ, message.toString() };
                     list.add(dataArray);
                 }
+                else if (actionList.contains(30) || actionList.contains(31) || actionList.contains(32) || actionList.contains(33)) {
+                    // Entity interact results (mount/dismount/leash/unleash)
+                    long resultId = results.getLong("id");
+                    int resultTime = results.getInt("time");
+                    int resultUserId = results.getInt("user");
+                    int resultWorldId = results.getInt("wid");
+                    int resultX = results.getInt("x");
+                    int resultY = results.getInt("y");
+                    int resultZ = results.getInt("z");
+                    int resultAction = results.getInt("action");
+                    int resultType = results.getInt("type"); // This is entity_type from entity_interact
+                    String resultTargetUuid = results.getString("target_uuid");
+                    byte[] resultMetadata = results.getBytes("metadata");
+
+                    Object[] dataArray = new Object[] { resultId, resultTime, resultUserId, resultWorldId, resultX, resultY, resultZ, resultAction, resultType, resultTargetUuid, resultMetadata };
+                    list.add(dataArray);
+                }
                 else {
                     int resultData = 0;
                     int resultAmount = -1;
@@ -223,7 +240,7 @@ public class LookupRaw extends Queue {
         ResultSet results = null;
 
         try {
-            List<Integer> validActions = Arrays.asList(0, 1, 2, 3);
+            List<Integer> validActions = Arrays.asList(0, 1, 2, 3, 30, 31, 32, 33);
             if (radius != null) {
                 restrictWorld = true;
             }
@@ -575,6 +592,11 @@ public class LookupRaw extends Queue {
                 queryTable = "item";
                 rows = "rowid as id,time,user,wid,x,y,z,type,data as metadata,0 as data,amount,action,0 as rolled_back";
             }
+            else if (actionList.contains(30) || actionList.contains(31) || actionList.contains(32) || actionList.contains(33)) {
+                // Entity interact table (mount/dismount/leash/unleash)
+                queryTable = "entity_interact";
+                rows = "rowid as id,time,user,wid,x,y,z,action,entity_type as type,target_uuid,metadata";
+            }
 
             if (count) {
                 rows = "COUNT(*) as count";
@@ -665,14 +687,41 @@ public class LookupRaw extends Queue {
             }
 
             if (query.length() == 0) {
-                if (actionExclude.length() > 0) {
-                    baseQuery = baseQuery.replace("action NOT IN(-1)", "action NOT IN(" + actionExclude + ")");
+                // Check if entity_interact actions are explicitly specified
+                boolean hasEntityInteractAction = actionList.contains(30) || actionList.contains(31) || actionList.contains(32) || actionList.contains(33);
+                
+                if (!hasEntityInteractAction) {
+                    // Default lookup without specific entity_interact actions - use block table directly
+                    query = "SELECT " + "'0' as tbl," + rows + " FROM " + ConfigHandler.prefix + queryTable + " " + index + "WHERE" + baseQuery + queryOrder + queryLimit;
                 }
-
-                query = "SELECT " + "'0' as tbl," + rows + " FROM " + ConfigHandler.prefix + queryTable + " " + index + "WHERE" + baseQuery;
+                else {
+                    // Entity interact actions explicitly specified - use entity_interact table directly
+                    // Need to adjust baseQuery for entity_interact table (uses entity_type, not type)
+                    String entityBaseQuery = baseQuery;
+                    
+                    // Remove any "type IN" or "type NOT IN" from baseQuery as entity_interact uses entity_type
+                    if (entityBaseQuery.contains("type IN(")) {
+                        entityBaseQuery = entityBaseQuery.replaceAll("type IN\\([^)]+\\) AND ", "");
+                    }
+                    if (entityBaseQuery.contains("type NOT IN(")) {
+                        entityBaseQuery = entityBaseQuery.replaceAll("type NOT IN\\([^)]+\\) AND ", "");
+                    }
+                    
+                    if (count) {
+                        // For count queries, use COUNT(*) as count with tbl column
+                        String entityRows = "COUNT(*) as count,'3' as tbl";
+                        query = "SELECT " + entityRows + " FROM " + ConfigHandler.prefix + queryTable + " WHERE" + entityBaseQuery + queryLimit;
+                    }
+                    else {
+                        // For data queries, add tbl column for consistency
+                        String entityRows = "'3' as tbl,rowid as id,time,user,wid,x,y,z,action,entity_type as type,target_uuid,metadata";
+                        query = "SELECT " + entityRows + " FROM " + ConfigHandler.prefix + queryTable + " WHERE" + entityBaseQuery + queryOrder + queryLimit;
+                    }
+                }
             }
-
-            query = query + queryOrder + queryLimit + "";
+            else {
+                query = query + queryOrder + queryLimit;
+            }
             results = statement.executeQuery(query);
         }
         catch (Exception e) {
