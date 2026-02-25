@@ -49,6 +49,18 @@ public class ParseResult {
         else if (actionID == 3) {
             result = "kill";
         }
+        else if (actionID == 30) {
+            result = "mount";
+        }
+        else if (actionID == 31) {
+            result = "dismount";
+        }
+        else if (actionID == 32) {
+            result = "leash";
+        }
+        else if (actionID == 33) {
+            result = "unleash";
+        }
 
         return result;
     }
