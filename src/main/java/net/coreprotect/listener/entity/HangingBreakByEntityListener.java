@@ -9,6 +9,7 @@ import org.bukkit.Material;
 import org.bukkit.block.BlockState;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemFrame;
+import org.bukkit.entity.LeashHitch;
 import org.bukkit.entity.Painting;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -91,70 +92,125 @@ public final class HangingBreakByEntityListener extends Queue implements Listene
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
-    protected void onHangingBreakByEntity(HangingBreakByEntityEvent event) {
+    private void onHangingBreakByEntity(HangingBreakByEntityEvent event) {
+
         Entity entity = event.getEntity();
         Entity remover = event.getRemover();
         BlockState blockEvent = event.getEntity().getLocation().getBlock().getState();
-        boolean logDrops = true;
+        
+        boolean[] inspectionResult = handleInspection(event, blockEvent);
+        boolean inspecting = inspectionResult[0];
+        boolean cancelled = inspectionResult[1];
+        
+        if (cancelled) {
+            return;
+        }
 
+        if (!(entity instanceof ItemFrame || entity instanceof Painting || entity instanceof LeashHitch)) {
+            return;
+        }
+
+        String culprit = determineCulprit(remover);
+        boolean logDrops = shouldLogDrops(remover);
+
+        if (entity instanceof LeashHitch) {
+            handleLeashHitchBreak(event, culprit, blockEvent, inspecting);
+            return;
+        }
+
+        handleItemFrameOrPaintingBreak(event, entity, culprit, blockEvent, inspecting, logDrops);
+    }
+
+
+
+    private boolean[] handleInspection(HangingBreakByEntityEvent event, BlockState blockEvent) {
         boolean inspecting = false;
+        boolean cancelled = false;
+
         if (event.getRemover() instanceof Player) {
             Player player = (Player) event.getRemover();
-
-            if (ConfigHandler.inspecting.get(player.getName()) != null) {
-                if (ConfigHandler.inspecting.get(player.getName())) {
-                    // block check
-                    inspectItemFrame(blockEvent, player);
-                    event.setCancelled(true);
-                    inspecting = true;
-                }
+            if (isPlayerInspecting(player)) {
+                inspectItemFrame(blockEvent, player);
+                event.setCancelled(true);
+                inspecting = true;
+                cancelled = true;
             }
         }
 
-        if (entity instanceof ItemFrame || entity instanceof Painting) {
-            String culprit = "#entity";
-            if (remover != null) {
-                if (remover instanceof Player) {
-                    Player player = (Player) remover;
-                    culprit = player.getName();
-                    logDrops = player.getGameMode() != GameMode.CREATIVE;
-                }
-                else if (remover.getType() != null) {
-                    culprit = "#" + remover.getType().name().toLowerCase(Locale.ROOT);
-                }
-            }
+        return new boolean[] { inspecting, cancelled };
+    }
 
-            String blockData = null;
-            Material material;
-            int itemData = 0;
-            if (entity instanceof ItemFrame) {
-                material = BukkitAdapter.ADAPTER.getFrameType(entity);
-                ItemFrame itemframe = (ItemFrame) entity;
-                blockData = "FACING=" + itemframe.getFacing().name();
+    private boolean isPlayerInspecting(Player player) {
+        return ConfigHandler.inspecting.get(player.getName()) != null && 
+               ConfigHandler.inspecting.get(player.getName());
+    }
 
-                if (!event.isCancelled() && Config.getConfig(entity.getWorld()).ITEM_TRANSACTIONS && !inspecting) {
-                    if (itemframe.getItem().getType() != Material.AIR) {
-                        ItemStack[] oldState = new ItemStack[] { itemframe.getItem().clone() };
-                        ItemStack[] newState = new ItemStack[] { new ItemStack(Material.AIR) };
-                        PlayerInteractEntityListener.queueContainerSpecifiedItems(culprit, Material.ITEM_FRAME, new Object[] { oldState, newState, itemframe.getFacing() }, itemframe.getLocation(), logDrops);
-                    }
-                }
-            }
-            else {
-                material = Material.PAINTING;
-                Painting painting = (Painting) entity;
-                blockData = "FACING=" + painting.getFacing().name();
-                try {
-                    itemData = MaterialUtils.getArtId(painting.getArt().toString(), true);
-                }
-                catch (IncompatibleClassChangeError e) {
-                    // 1.21.2+
-                }
-            }
+    private String determineCulprit(Entity remover) {
+        if (remover == null) {
+            return "#entity";
+        }
 
-            if (!event.isCancelled() && Config.getConfig(blockEvent.getWorld()).BLOCK_BREAK && !inspecting) {
-                Queue.queueBlockBreak(culprit, blockEvent, material, blockData, itemData);
+        if (remover instanceof Player) {
+            return ((Player) remover).getName();
+        } else if (remover.getType() != null) {
+            return "#" + remover.getType().name().toLowerCase(Locale.ROOT);
+        }
+
+        return "#entity";
+    }
+
+    private boolean shouldLogDrops(Entity remover) {
+        if (remover instanceof Player) {
+            Player player = (Player) remover;
+            return player.getGameMode() != GameMode.CREATIVE;
+        }
+        return true;
+    }
+
+    private void handleLeashHitchBreak(HangingBreakByEntityEvent event, String culprit, BlockState blockEvent, boolean inspecting) {
+        if (!event.isCancelled() && Config.getConfig(blockEvent.getWorld()).BLOCK_BREAK && !inspecting) {
+            Queue.queueBlockBreak(culprit, blockEvent, Material.LEAD, null, 0);
+        }
+    }
+
+    private void handleItemFrameOrPaintingBreak(HangingBreakByEntityEvent event, Entity entity, String culprit, BlockState blockEvent, boolean inspecting, boolean logDrops) {
+        if (entity instanceof ItemFrame) {
+            handleItemFrameBreak(event, (ItemFrame) entity, culprit, blockEvent, inspecting, logDrops);
+        } else {
+            handlePaintingBreak(event, (Painting) entity, culprit, blockEvent, inspecting);
+        }
+    }
+
+    private void handleItemFrameBreak(HangingBreakByEntityEvent event, ItemFrame itemframe, String culprit, BlockState blockEvent, boolean inspecting, boolean logDrops) {
+        Material material = BukkitAdapter.ADAPTER.getFrameType(itemframe);
+        String blockData = "FACING=" + itemframe.getFacing().name();
+
+        if (!event.isCancelled() && Config.getConfig(itemframe.getWorld()).ITEM_TRANSACTIONS && !inspecting) {
+            if (itemframe.getItem().getType() != Material.AIR) {
+                ItemStack[] oldState = new ItemStack[] { itemframe.getItem().clone() };
+                ItemStack[] newState = new ItemStack[] { new ItemStack(Material.AIR) };
+                PlayerInteractEntityListener.queueContainerSpecifiedItems(culprit, Material.ITEM_FRAME, new Object[] { oldState, newState, itemframe.getFacing() }, itemframe.getLocation(), logDrops);
             }
+        }
+
+        if (!event.isCancelled() && Config.getConfig(blockEvent.getWorld()).BLOCK_BREAK && !inspecting) {
+            Queue.queueBlockBreak(culprit, blockEvent, material, blockData, 0);
+        }
+    }
+
+    private void handlePaintingBreak(HangingBreakByEntityEvent event, Painting painting, String culprit, BlockState blockEvent, boolean inspecting) {
+        Material material = Material.PAINTING;
+        String blockData = "FACING=" + painting.getFacing().name();
+        int itemData = 0;
+
+        try {
+            itemData = MaterialUtils.getArtId(painting.getArt().toString(), true);
+        } catch (IncompatibleClassChangeError e) {
+            // 1.21.2+
+        }
+
+        if (!event.isCancelled() && Config.getConfig(blockEvent.getWorld()).BLOCK_BREAK && !inspecting) {
+            Queue.queueBlockBreak(culprit, blockEvent, material, blockData, itemData);
         }
     }
 
