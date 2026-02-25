@@ -394,4 +394,15 @@ public class Queue {
         addConsumer(currentConsumer, new Object[] { consumerId, Process.WORLD_INSERT, null, 0, null, 0, id, null });
         queueStandardData(consumerId, currentConsumer, new String[] { null, null }, world);
     }
+
+    protected static void queueEntityInteract(String user, Location location, int action, org.bukkit.entity.EntityType entityType, String entityUuid, String targetUuid, String metadata) {
+        int currentConsumer = Consumer.currentConsumer;
+        int consumerId = Consumer.newConsumerId(currentConsumer);
+        
+        int entityTypeId = net.coreprotect.utility.EntityUtils.getEntityId(entityType);
+        
+        // Format: [id, process, blockType, entityTypeId, replaceType, action, forceData, entityUuid, targetUuid, metadata]
+        addConsumer(currentConsumer, new Object[] { consumerId, Process.ENTITY_INTERACT, null, entityTypeId, null, action, 0, entityUuid, targetUuid, metadata });
+        queueStandardData(consumerId, currentConsumer, new String[] { user, null }, location);
+    }
 }
