@@ -45,6 +45,7 @@ public class Database extends Queue {
     public static final int ENTITY_MAP = 11;
     public static final int BLOCKDATA = 12;
     public static final int ITEM = 13;
+    public static final int ENTITY_INTERACT = 14;
 
     private static final Map<Integer, String> SQL_QUERIES = new HashMap<>();
 
@@ -64,6 +65,7 @@ public class Database extends Queue {
         SQL_QUERIES.put(ART, "INSERT INTO %sprefix%art_map (id, art) VALUES (?, ?)");
         SQL_QUERIES.put(ENTITY_MAP, "INSERT INTO %sprefix%entity_map (id, entity) VALUES (?, ?)");
         SQL_QUERIES.put(BLOCKDATA, "INSERT INTO %sprefix%blockdata_map (id, data) VALUES (?, ?)");
+        SQL_QUERIES.put(ENTITY_INTERACT, "INSERT INTO %sprefix%entity_interact (time, user, wid, x, y, z, action, entity_type, entity_uuid, target_uuid, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     }
 
     public static void beginTransaction(Statement statement, boolean isMySQL) {
@@ -306,7 +308,7 @@ public class Database extends Queue {
         }
     }
 
-    private static final List<String> DATABASE_TABLES = Arrays.asList("art_map", "block", "chat", "command", "container", "item", "database_lock", "entity", "entity_map", "material_map", "blockdata_map", "session", "sign", "skull", "user", "username_log", "version", "world");
+    private static final List<String> DATABASE_TABLES = Arrays.asList("art_map", "block", "chat", "command", "container", "entity_interact", "item", "database_lock", "entity", "entity_map", "material_map", "blockdata_map", "session", "sign", "skull", "user", "username_log", "version", "world");
 
     public static void createDatabaseTables(String prefix, boolean forcePrefix, Connection forceConnection, boolean mySQL, boolean purge) {
         ConfigHandler.databaseTables.clear();
@@ -411,6 +413,10 @@ public class Database extends Queue {
         // World
         index = ", INDEX(id)";
         statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + prefix + "world(rowid int NOT NULL AUTO_INCREMENT,PRIMARY KEY(rowid),id int,world varchar(255)" + index + ") ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4");
+
+        // Entity Interact (mount/dismount/leash/unleash)
+        index = ", INDEX(wid,x,z,time), INDEX(user,time), INDEX(action,time)";
+        statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + prefix + "entity_interact(rowid int NOT NULL AUTO_INCREMENT,PRIMARY KEY(rowid), time int, user int, wid int, x int, y int, z int, action tinyint, entity_type int, entity_uuid varchar(36), target_uuid varchar(36), metadata blob" + index + ") ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4");
     }
 
     private static void createSQLiteTables(String prefix, boolean forcePrefix, Connection forceConnection, boolean purge) {
@@ -512,6 +518,9 @@ public class Database extends Queue {
         if (!tableData.contains(prefix + "world")) {
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + prefix + "world (id INTEGER, world TEXT);");
         }
+        if (!tableData.contains(prefix + "entity_interact")) {
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + prefix + "entity_interact (time INTEGER, user INTEGER, wid INTEGER, x INTEGER, y INTEGER, z INTEGER, action INTEGER, entity_type INTEGER, entity_uuid TEXT, target_uuid TEXT, metadata BLOB);");
+        }
     }
 
     private static void createSQLiteIndexes(String prefix, Statement statement, List<String> indexData, String attachDatabase, boolean purge) {
@@ -546,6 +555,9 @@ public class Database extends Queue {
             createSQLiteIndex(statement, indexData, attachDatabase, "uuid_index", prefix + "user(uuid)");
             createSQLiteIndex(statement, indexData, attachDatabase, "username_log_uuid_index", prefix + "username_log(uuid,user)");
             createSQLiteIndex(statement, indexData, attachDatabase, "world_id_index", prefix + "world(id)");
+            createSQLiteIndex(statement, indexData, attachDatabase, "entity_interact_index", prefix + "entity_interact(wid,x,z,time)");
+            createSQLiteIndex(statement, indexData, attachDatabase, "entity_interact_user_index", prefix + "entity_interact(user,time)");
+            createSQLiteIndex(statement, indexData, attachDatabase, "entity_interact_action_index", prefix + "entity_interact(action,time)");
         }
         catch (Exception e) {
             Chat.console(Phrase.build(Phrase.DATABASE_INDEX_ERROR));
