@@ -244,11 +244,7 @@ public class LookupRaw extends Queue {
         ResultSet results = null;
 
         try {
-<<<<<<< HEAD
-            List<Integer> validActions = Arrays.asList(0, 1, 2, 3, 30, 31, 32, 33);
-=======
-            List<Integer> validActions = Arrays.asList(LookupActions.BLOCK_BREAK, LookupActions.BLOCK_PLACE, LookupActions.INTERACTION, LookupActions.ENTITY_KILL);
->>>>>>> upstream/master
+            List<Integer> validActions = Arrays.asList(LookupActions.BLOCK_BREAK, LookupActions.BLOCK_PLACE, LookupActions.INTERACTION, LookupActions.ENTITY_KILL, 30, 31, 32, 33);
             if (radius != null) {
                 restrictWorld = true;
             }

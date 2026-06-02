@@ -33,16 +33,16 @@ public class ParseResult implements CoreProtectResult {
             return SessionActions.getActionString(actionID);
         }
         else if (actionID == 30) {
-            result = "mount";
+            return "mount";
         }
         else if (actionID == 31) {
-            result = "dismount";
+            return "dismount";
         }
         else if (actionID == 32) {
-            result = "leash";
+            return "leash";
         }
         else if (actionID == 33) {
-            result = "unleash";
+            return "unleash";
         }
 
         return LookupActions.getActionString(actionID);
