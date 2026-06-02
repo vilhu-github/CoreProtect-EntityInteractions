@@ -8,6 +8,7 @@ import org.bukkit.Location;
 import net.coreprotect.config.ConfigHandler;
 import net.coreprotect.database.statement.ChatStatement;
 import net.coreprotect.utility.WorldUtils;
+import net.coreprotect.utility.ErrorReporter;
 
 public class ChatLogger {
 
@@ -17,7 +18,7 @@ public class ChatLogger {
 
     public static void log(PreparedStatement preparedStmt, int batchCount, long time, Location location, String user, String message) {
         try {
-            if (ConfigHandler.blacklist.get(user.toLowerCase(Locale.ROOT)) != null) {
+            if (ConfigHandler.isBlacklisted(user)) {
                 return;
             }
             int x = location.getBlockX();
@@ -28,7 +29,7 @@ public class ChatLogger {
             ChatStatement.insert(preparedStmt, batchCount, time, userId, wid, x, y, z, message);
         }
         catch (Exception e) {
-            e.printStackTrace();
+            ErrorReporter.report(e);
         }
     }
 

@@ -29,6 +29,7 @@ import net.coreprotect.listener.player.PlayerInteractEntityListener;
 import net.coreprotect.utility.Chat;
 import net.coreprotect.utility.Color;
 import net.coreprotect.utility.MaterialUtils;
+import net.coreprotect.utility.ErrorReporter;
 
 public final class HangingBreakByEntityListener extends Queue implements Listener {
 
@@ -80,7 +81,7 @@ public final class HangingBreakByEntityListener extends Queue implements Listene
                     }
                 }
                 catch (Exception e) {
-                    e.printStackTrace();
+                    ErrorReporter.report(e);
                 }
 
                 ConfigHandler.lookupThrottle.put(player.getName(), new Object[] { false, System.currentTimeMillis() });
@@ -141,7 +142,7 @@ public final class HangingBreakByEntityListener extends Queue implements Listene
     }
 
     private boolean isPlayerInspecting(Player player) {
-        return ConfigHandler.inspecting.get(player.getName()) != null && 
+        return ConfigHandler.inspecting.get(player.getName()) != null &&
                ConfigHandler.inspecting.get(player.getName());
     }
 

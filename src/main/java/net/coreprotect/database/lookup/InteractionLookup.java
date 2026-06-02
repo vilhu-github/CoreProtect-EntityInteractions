@@ -4,7 +4,6 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Locale;
 
-import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 
@@ -17,8 +16,8 @@ import net.coreprotect.utility.ChatUtils;
 import net.coreprotect.utility.Color;
 import net.coreprotect.utility.EntityUtils;
 import net.coreprotect.utility.MaterialUtils;
-import net.coreprotect.utility.StringUtils;
 import net.coreprotect.utility.WorldUtils;
+import net.coreprotect.utility.ErrorReporter;
 
 public class InteractionLookup {
 
@@ -187,14 +186,9 @@ public class InteractionLookup {
                         rbFormat = Color.STRIKETHROUGH;
                     }
 
-                    Material resultMaterial = MaterialUtils.getType(resultType);
-                    if (resultMaterial == null) {
-                        resultMaterial = Material.AIR;
-                    }
-                    target = resultMaterial.name().toLowerCase(Locale.ROOT);
-                    target = StringUtils.nameFilter(target, resultData);
-                    if (target.length() > 0) {
-                        target = "minecraft:" + target.toLowerCase(Locale.ROOT) + "";
+                    target = MaterialUtils.getBlockDisplayName(resultType, resultData);
+                    if (target.length() > 0 && !target.contains(":")) {
+                        target = "minecraft:" + target.toLowerCase(Locale.ROOT);
                     }
 
                     // Hide "minecraft:" for now.
@@ -238,7 +232,7 @@ public class InteractionLookup {
             ConfigHandler.lookupCommand.put(commandSender.getName(), lookupState);
         }
         catch (Exception e) {
-            e.printStackTrace();
+            ErrorReporter.report(e);
         }
 
         return result;
